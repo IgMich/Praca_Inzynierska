@@ -1,0 +1,7 @@
+out/
+build/
+.vscode/
+
+CMakePresets.json
+
+praca_uwagi_notatki.txt
