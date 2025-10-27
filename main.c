@@ -40,16 +40,18 @@ void display_current_pitch_wav(double energy,double *pitches, double confidence,
 }
 
 void analyze_wav_file(sound_t sound, int n, double sample_rate, const char* method){
-    static uint32_t sound_position = 0;
-    double *curr_pitches = calloc(3,sizeof(double));
-    double curr_energy =0.0;
+    static uint32_t sound_position = 0; //Variable to iterate over the samples
+    double *curr_pitches = calloc(3,sizeof(double)); // current pitches (estimated by each method)
+    double curr_energy =0.0;    //Energy of last analyzed signal frame
     int num_frame = 0;
     int idx = 0;
 
+    //Select method to dispay
     for(int i=0;i<3;i++){
         if(strcmp(method,methods[i]) == 0)
         idx = i;
     }
+    // Main loop
     while(sound_position < sound.samples){
         complex_t* signal = allocate_complex_array(n);
         for(int i=0; i < n;i++){
@@ -63,12 +65,15 @@ void analyze_wav_file(sound_t sound, int n, double sample_rate, const char* meth
         num_frame++;
         double energy = compute_energy(signal,n);
         double energy_ratio = curr_energy/energy;
+        
+        //energy of next frames is rising == new note
         if(energy_ratio < 1.5){
             apply_window_hann(signal, n);
             complex_t* spectrum = allocate_complex_array(n);
             memcpy(spectrum, signal, n * sizeof(complex_t));
             radix2_dit_fft(spectrum, n, FFT_FORWARD);
             double *pitches = calloc(3,sizeof(double));
+            // Method 1: Simple Maximum Peak
             pitches[0] = detect_pitch_peak(spectrum, n, sample_rate);
             // Method 2: HPS
             pitches[1] = detect_pitch_hps(spectrum, n, sample_rate, 3);
@@ -102,6 +107,17 @@ int main() {
     
     double sample_rate = 44100;
     int n = 4096;
+
+    
+    printf("\nWav file analyze test\n\n");
+    sound_t sound;
+	if(!LoadWav("wav/e4.wav", &sound)) {
+		PRINT_ERROR("Failed to load cheers.wav");
+	}
+    else{
+        printf("Wav file loaded succesfully\n");
+    }
+    analyze_wav_file(sound,n,sample_rate,methods[2]);
     
     // // Test 1: Pure sine wave
     // printf("Test 1: Pure Sine Wave (A4 = 440 Hz)\n");
@@ -207,16 +223,5 @@ int main() {
     
     // free_complex_array(signal);
     // free_complex_array(spectrum);
-
-    printf("\nWav file analyze test\n\n");
-    sound_t sound;
-	if(!LoadWav("wav/e4.wav", &sound)) {
-		PRINT_ERROR("Failed to load cheers.wav");
-	}
-    else{
-        printf("Wav file loaded succesfully\n");
-    }
-    analyze_wav_file(sound,n,sample_rate,methods[2]);
-    
     return 0;
 }
