@@ -11,4 +11,11 @@ typedef struct {
 	int32_t bytes_per_second;	// sample_rate * num_channels * bits_per_sample / 8
 } sound_t;
 
+typedef struct
+{
+	char *id;
+	char* text;
+} list_t;
+
+
 bool LoadWav(const char *filename, sound_t *sound);

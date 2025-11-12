@@ -2,6 +2,12 @@
 #include "pitch_detection.h"
 #include "audio_spectrum.h"
 
+double fundamental_freq[] = {65.41,69.30,73.42,77.78,
+                            82.41,87.31,92.50,98.00,
+                            103.83,110.00,116.54,123.47};
+
+int freq_number = 49;
+
 double compute_energy(complex_t* signal, int n){
     double energy = 0;
     for(int i=0;i<n;i++){
@@ -38,6 +44,29 @@ void display_current_pitch_wav(double energy,double *pitches, double confidence,
     }
 
 }
+void display_spectrum_ascii_v2(double* magnitude, int k, double *fundamentals) {
+    
+    // Find maximum magnitude for scaling
+    double max_mag = 0;
+    for (int i = 0; i < k; i++) {
+        if (magnitude[i] > max_mag) max_mag = magnitude[i];
+    }
+    
+    printf("\nFrequency Spectrum:\n");
+    printf("==================\n");
+    
+    // Display each frequency bin
+    for (int i = 0; i < k; i++) {
+        double freq = fundamentals[i%12] * pow(2,(int)i/12);
+        int bar_length = (int)(50 * magnitude[i] / max_mag);
+        
+        printf("%5.0f Hz |", freq);
+        for (int j = 0; j < bar_length; j++) {
+            printf("█");
+        }
+        printf(" %.3f\n", magnitude[i]);
+    }
+}
 
 void analyze_wav_file(sound_t sound, int n, double sample_rate, const char* method){
     static uint32_t sound_position = 0; //Variable to iterate over the samples
@@ -67,33 +96,49 @@ void analyze_wav_file(sound_t sound, int n, double sample_rate, const char* meth
         double energy_ratio = curr_energy/energy;
         
         //energy of next frames is rising == new note
-        if(energy_ratio < 1.5){
+        // if(num_frame > 15 && num_frame << 19){
+        //     apply_window_hann(signal, n);
+        //     complex_t* spectrum = allocate_complex_array(n);
+        //     // memcpy(spectrum, signal, n * sizeof(complex_t));
+        //     spectrum = compute_ndft(signal,n,fundamental_freq,freq_number);
+        //     double *magnitude = compute_magnitude(spectrum,freq_number);
+        //     display_spectrum_ascii_v2(magnitude,freq_number,fundamental_freq);
+        //     free_complex_array(spectrum);    
+        // }
+        if(energy_ratio < 1){
             apply_window_hann(signal, n);
             complex_t* spectrum = allocate_complex_array(n);
-            memcpy(spectrum, signal, n * sizeof(complex_t));
-            radix2_dit_fft(spectrum, n, FFT_FORWARD);
+            //memcpy(spectrum, signal, n * sizeof(complex_t));
+            spectrum = compute_ndft(signal,n,fundamental_freq,freq_number);
+            //radix2_dit_fft(spectrum, n, FFT_FORWARD);
             double *pitches = calloc(3,sizeof(double));
             // Method 1: Simple Maximum Peak
-            pitches[0] = detect_pitch_peak(spectrum, n, sample_rate);
-            // Method 2: HPS
-            pitches[1] = detect_pitch_hps(spectrum, n, sample_rate, 3);
+            // pitches[0] = detect_pitch_peak(spectrum,n,sample_rate);
+            pitches[0] = detect_pitch_peak_v2(spectrum, freq_number, fundamental_freq);
+            // // Method 2: HPS
+            // pitches[1] = detect_pitch_hps(spectrum, n, sample_rate, 3);
         
-            // Method 3: Autocorrelation
-            pitches[2] = detect_pitch_autocorr(signal, n, sample_rate);
-            double avg_pitch = (pitches[0] + pitches[1] + pitches[1]) / 3;
-            double variance = pow(pitches[0] - avg_pitch, 2) + 
-                    pow(pitches[1] - avg_pitch, 2) + 
-                    pow(pitches[2] - avg_pitch, 2);
-            variance /= 3;
+            // // Method 3: Autocorrelation
+            // pitches[2] = detect_pitch_autocorr(signal, n, sample_rate);
+            // double avg_pitch = (pitches[0] + pitches[1] + pitches[1]) / 3;
+            // double variance = pow(pitches[0] - avg_pitch, 2) + 
+            //         pow(pitches[1] - avg_pitch, 2) + 
+            //         pow(pitches[2] - avg_pitch, 2);
+            // variance /= 3;
 
-            double confidence = 1.0 / (1.0 + sqrt(variance) / avg_pitch);
-            // if(check_new_pitch(pitches,curr_pitches,idx)){
-            //     for(int i=0;i<3;i++){
-            //         curr_pitches[i] = pitches[i];
-            //     }
-            //     display_current_pitch_wav(curr_pitches,confidence,num_frame, method);
-            // }
-            display_current_pitch_wav(energy_ratio,pitches,confidence,num_frame, method);
+            // double confidence = 1.0 / (1.0 + sqrt(variance) / avg_pitch);
+            // // if(check_new_pitch(pitches,curr_pitches,idx)){
+            // //     for(int i=0;i<3;i++){
+            // //         curr_pitches[i] = pitches[i];
+            // //     }
+            // //     display_current_pitch_wav(curr_pitches,confidence,num_frame, method);
+            // // }
+            // display_current_pitch_wav(energy_ratio,pitches,confidence,num_frame, method);
+            printf("Frame:%d\n",num_frame);
+            printf("Energy: %.1f\n",energy_ratio);
+            printf("Method: %s\n",methods[idx]);
+            printf("Detected pitch: %.2f Hz\n", pitches[idx]);
+            printf("Musical note: %s\n", frequency_to_note_name(pitches[idx]));
             free_complex_array(spectrum);
         }
         curr_energy = energy;
@@ -111,13 +156,13 @@ int main() {
     
     printf("\nWav file analyze test\n\n");
     sound_t sound;
-	if(!LoadWav("wav/e4.wav", &sound)) {
+	if(!LoadWav("wav/guitar-pack-g-string.wav", &sound)) {
 		PRINT_ERROR("Failed to load cheers.wav");
 	}
     else{
         printf("Wav file loaded succesfully\n");
     }
-    analyze_wav_file(sound,n,sample_rate,methods[2]);
+    analyze_wav_file(sound,n,sample_rate,methods[0]);
     
     // // Test 1: Pure sine wave
     // printf("Test 1: Pure Sine Wave (A4 = 440 Hz)\n");

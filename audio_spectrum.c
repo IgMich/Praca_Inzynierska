@@ -15,6 +15,18 @@ void apply_window_hamming(complex_t* signal, int n) {
         signal[i] *= window;
     }
 }
+complex_t* compute_ndft(complex_t *signal, int n,double *fundamentals, int k){
+    complex_t *spectrum = allocate_complex_array(k);
+    double exp = 0;
+    for(int i=0;i<k;i++){
+        double freq = fundamentals[i%12] * pow(2,exp);
+        for(int j=0;j<n;j++){
+            spectrum[i] += signal[j]*cexp(I*(-1)*TWO_PI*j*freq/n);
+        }
+        exp++;
+    }
+    return spectrum;
+}
 
 void apply_window_blackman(complex_t* signal, int n) {
     for (int i = 0; i < n; i++) {

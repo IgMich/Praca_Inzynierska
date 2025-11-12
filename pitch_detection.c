@@ -2,7 +2,6 @@
 #include "fft_algorithms.h"
 #include "pitch_detection.h"
 
-
 musical_note_t notes[] = {
     {"C0", 16.35}, {"C#0", 17.32}, {"D0", 18.35}, {"D#0", 19.45},
     {"E0", 20.60}, {"F0", 21.83}, {"F#0", 23.12}, {"G0", 24.50},
@@ -89,6 +88,21 @@ double detect_pitch_peak(complex_t* spectrum, int n, double sample_rate) {
     free(magnitude);
     
     return peak_bin * sample_rate / n;
+}
+double detect_pitch_peak_v2(complex_t* spectrum, int k,double *fundamentals){
+    double* magnitude = compute_magnitude(spectrum,k);
+    
+    double max_mag = 0;
+    int freq_idx = 0;
+    
+    for (int i = 0; i < k; i++) {
+        if (magnitude[i] > max_mag) {
+            max_mag = magnitude[i];
+            freq_idx = i;
+        }
+    }
+    free(magnitude);
+    return fundamentals[freq_idx%12]*pow(2,(int)freq_idx/12);
 }
 
 // Harmonic Product Spectrum (HPS) method

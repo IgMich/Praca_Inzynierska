@@ -33,6 +33,7 @@ typedef struct {
 } peak_t;
 
 void apply_window_hann(complex_t* signal, int n);
+complex_t* compute_ndft(complex_t* signal, int n,double *fundamentals, int k);
 void apply_window_hamming(complex_t* signal, int n);
 void apply_window_blackman(complex_t* signal, int n);
 void generate_test_audio(complex_t* signal, int n, double sample_rate);

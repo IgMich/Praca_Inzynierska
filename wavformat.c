@@ -13,6 +13,10 @@ bool LoadWav(const char *filename, sound_t *sound) {
 	int16_t block_align;		// num_channels * bits_per_sample / 8
 	int16_t bits_per_sample;	// 16
 	int32_t data_size;
+	int32_t list_size;
+	list_t list_content[20];
+	int list_inf = 0;
+
 
 	file = fopen(filename, "rb");
 	if(file == NULL) {
@@ -52,7 +56,7 @@ bool LoadWav(const char *filename, sound_t *sound) {
 	}
 
 	fread(&num_channels, 2, 1, file);
-	if(num_channels != 2) {
+	if(num_channels != 1) {
 		PRINT_ERROR("%s Number of channels should be 1, is %d", filename, num_channels);
 		return_value = false;
 		goto CLOSE_FILE;
@@ -75,35 +79,85 @@ bool LoadWav(const char *filename, sound_t *sound) {
 	}
 
 	fread(magic, 1, 4, file);
-	if(magic[0] != 'd' || magic[1] != 'a' || magic[2] != 't' || magic[3] != 'a') {
-		PRINT_ERROR("%s 4 bytes should be \"data\", are \"%4s\"", filename, magic);
+	if(magic[0] == 'L' && magic[1] == 'I' && magic[2] == 'S' && magic[3] == 'T'){
+		fread(&list_size,4,1,file);
+		fread(magic, 1, 4, file);
+		if(magic[0] != 'I' || magic[1] != 'N' || magic[2] != 'F' || magic[3] != 'O'){
+			PRINT_ERROR("%s List type should be \"INFO\", is %s4",filename,magic);
+			return_value = false;
+			goto CLOSE_FILE;
+		}
+		fread(magic, 1, 4, file);
+		while(magic[0] != 'd' || magic[1] != 'a' || magic[2] != 't' || magic[3] != 'a'){
+			int32_t info_size;
+			fread(&info_size,4,1,file);
+			list_content[list_inf].text = malloc(info_size);
+			if(list_content[list_inf].text == NULL){
+				PRINT_ERROR("%s Failed to allocate %d bytes for list data", filename, info_size);
+				return_value = false;
+				goto CLOSE_FILE;
+			}
+			if(fread(list_content[list_inf].text,1,info_size,file) !=info_size){
+				PRINT_ERROR("%s Failed to read list data bytes", filename);
+				return_value = false;
+				free(list_content[list_inf].text);
+				goto CLOSE_FILE;
+			}
+			list_inf++;
+			fread(magic,1,4,file);
+		}
+		fread(&data_size, 4, 1, file);
+
+		sound->data = malloc(data_size);
+		if(sound->data == NULL) {
+			PRINT_ERROR("%s Failed to allocate %d bytes for data", filename, data_size);
+			return_value = false;
+			goto CLOSE_FILE;
+		}
+
+		if(fread(sound->data, 1, data_size, file) != data_size) {
+			PRINT_ERROR("%s Failed to read data bytes", filename);
+			return_value = false;
+			free(sound->data);
+			goto CLOSE_FILE;
+		}
+
+		sound->samples = data_size / 2;
+		sound->bytes_per_second = bytes_per_second;
+	}
+	else if(magic[0] == 'd' && magic[1] == 'a' && magic[2] == 't' && magic[3] == 'a') {
+		fread(&data_size, 4, 1, file);
+
+		sound->data = malloc(data_size);
+		if(sound->data == NULL) {
+			PRINT_ERROR("%s Failed to allocate %d bytes for data", filename, data_size);
+			return_value = false;
+			goto CLOSE_FILE;
+		}
+
+		if(fread(sound->data, 1, data_size, file) != data_size) {
+			PRINT_ERROR("%s Failed to read data bytes", filename);
+			return_value = false;
+			free(sound->data);
+			goto CLOSE_FILE;
+		}
+
+		sound->samples = data_size / 2;
+		sound->bytes_per_second = bytes_per_second;
+		fclose(file);
+		printf("Sound samples: %d\n",sound->samples);
+		printf("Bytes per second: %d\n",sound->bytes_per_second);
+
+		return return_value;
+	}
+	else{
+		PRINT_ERROR("%s chunk id should be \"data\" or \"list\", is %s",filename,magic);
 		return_value = false;
 		goto CLOSE_FILE;
 	}
-
-	fread(&data_size, 4, 1, file);
-
-	sound->data = malloc(data_size);
-	if(sound->data == NULL) {
-		PRINT_ERROR("%s Failed to allocate %d bytes for data", filename, data_size);
-		return_value = false;
-		goto CLOSE_FILE;
-	}
-
-	if(fread(sound->data, 1, data_size, file) != data_size) {
-		PRINT_ERROR("%s Failed to read data bytes", filename);
-		return_value = false;
-		free(sound->data);
-		goto CLOSE_FILE;
-	}
-
-	sound->samples = data_size / 2;
-	sound->bytes_per_second = bytes_per_second;
-
 	CLOSE_FILE:
 	fclose(file);
 	printf("Sound samples: %d\n",sound->samples);
 	printf("Bytes per second: %d\n",sound->bytes_per_second);
-
 	return return_value;
 }

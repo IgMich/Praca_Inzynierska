@@ -44,6 +44,9 @@ const char* frequency_to_note_name(double freq);
 double detect_pitch_peak(complex_t* spectrum, int n, double sample_rate);
 double detect_pitch_hps(complex_t* spectrum, int n, double sample_rate, int harmonics);
 double detect_pitch_autocorr(complex_t* signal, int n, double sample_rate);
+double detect_pitch_peak_v2(complex_t* spectrum, int n, double *fundamentals);
+double detect_pitch_hps_v2(complex_t* spectrum, int n, double sample_rate, int harmonics);
+double detect_pitch_autocorr_v2(complex_t* signal, int n, double sample_rate);
 pitch_result_t detect_pitch_with_confidence(complex_t* signal, int n, double sample_rate);
 void generate_musical_note(complex_t* signal, int n, double freq, double sample_rate, int num_harmonics, double* harmonic_amps);
 
